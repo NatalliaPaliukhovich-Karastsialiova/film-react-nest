@@ -8,6 +8,10 @@ export const FILMS_REPOSITORY = 'FILMS_REPOSITORY';
 
 export type ReserveSeatsResult = 'reserved' | 'already_taken' | 'not_found';
 
+type FilmScheduleDocument = Omit<FilmScheduleDto, 'hall'> & {
+  hall: string | number;
+};
+
 export interface FilmsRepository {
   findAll(): Promise<FilmDto[]>;
   findScheduleByFilmId(filmId: string): Promise<FilmScheduleDto[]>;
@@ -98,11 +102,13 @@ export class MongoFilmsRepository implements FilmsRepository {
     };
   }
 
-  private toScheduleDto(schedule: Partial<FilmScheduleDto>): FilmScheduleDto {
+  private toScheduleDto(
+    schedule: Partial<FilmScheduleDocument>,
+  ): FilmScheduleDto {
     return {
       id: schedule.id ?? '',
       daytime: schedule.daytime ?? '',
-      hall: String(schedule.hall ?? ''),
+      hall: Number(schedule.hall ?? 0),
       rows: schedule.rows ?? 0,
       seats: schedule.seats ?? 0,
       price: schedule.price ?? 0,

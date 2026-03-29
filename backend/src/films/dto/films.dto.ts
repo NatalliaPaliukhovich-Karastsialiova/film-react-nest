@@ -37,8 +37,8 @@ export class FilmScheduleDto {
   @IsString()
   daytime: string;
 
-  @IsString()
-  hall: string;
+  @IsNumber()
+  hall: number;
 
   @IsNumber()
   rows: number;
