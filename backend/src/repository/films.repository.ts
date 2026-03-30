@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { FilmDto, FilmScheduleDto } from '../films/dto/films.dto';
-import { FilmEntity } from './schemas/film.schema';
+import { FilmEntity } from '../films/entities/film.entity';
 
 export const FILMS_REPOSITORY = 'FILMS_REPOSITORY';
 
@@ -14,7 +14,7 @@ type FilmScheduleDocument = Omit<FilmScheduleDto, 'hall'> & {
 
 export interface FilmsRepository {
   findAll(): Promise<FilmDto[]>;
-  findScheduleByFilmId(filmId: string): Promise<FilmScheduleDto[]>;
+  findScheduleByFilmId(filmId: string): Promise<FilmScheduleDto[] | null>;
   reserveSeats(
     filmId: string,
     sessionId: string,
@@ -37,13 +37,15 @@ export class MongoFilmsRepository implements FilmsRepository {
     return films.map((film) => this.toFilmDto(film));
   }
 
-  async findScheduleByFilmId(filmId: string): Promise<FilmScheduleDto[]> {
+  async findScheduleByFilmId(
+    filmId: string,
+  ): Promise<FilmScheduleDto[] | null> {
     const film = await this.filmModel
       .findOne({ id: filmId }, { schedule: 1, _id: 0 })
       .lean()
       .exec();
     if (!film) {
-      return [];
+      return null;
     }
 
     return (film.schedule ?? []).map((schedule) =>
