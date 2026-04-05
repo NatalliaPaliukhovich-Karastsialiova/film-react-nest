@@ -14,6 +14,12 @@ export type ErrorState = {
     error: string;
 };
 
+const joinUrl = (base: string, path: string): string => {
+    const normalizedBase = base.replace(/\/+$/, '');
+    const normalizedPath = path.replace(/^\/+/, '');
+    return `${normalizedBase}/${normalizedPath}`;
+};
+
 
 export class Api {
     readonly baseUrl: string;
@@ -154,8 +160,8 @@ export class FilmAPI extends Api implements IFilmAPI {
         const data = await this._get<ApiListResponse<Movie>>('/films');
         return data.items.map((item) => ({
             ...item,
-            image: this.cdn + item.image,
-            cover: this.cdn + item.cover,
+            image: joinUrl(this.cdn, item.image),
+            cover: joinUrl(this.cdn, item.cover),
         }));
     }
 

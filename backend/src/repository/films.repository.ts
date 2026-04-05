@@ -30,7 +30,9 @@ export class TypeOrmFilmsRepository implements FilmsRepository {
   ) {}
 
   async findAll(): Promise<FilmDto[]> {
-    const films = await this.filmRepository.find();
+    const films = await this.filmRepository.find({
+      relations: ['schedule'],
+    });
     return films.map((film) => this.toFilmDto(film));
   }
 
@@ -86,8 +88,9 @@ export class TypeOrmFilmsRepository implements FilmsRepository {
       title: film.title,
       about: film.about,
       description: film.description,
-      image: film.image,
-      cover: film.cover,
+      image: this.toPublicAssetName(film.image),
+      cover: this.toPublicAssetName(film.cover),
+      schedule: (film.schedule ?? []).map((item) => this.toScheduleDto(item)),
     };
   }
 
@@ -118,5 +121,12 @@ export class TypeOrmFilmsRepository implements FilmsRepository {
 
   private toStoredList(values: string[]): string {
     return Array.from(new Set(values)).join(',');
+  }
+
+  private toPublicAssetName(path: string | null | undefined): string {
+    if (!path) {
+      return '';
+    }
+    return path.replace(/^\/+/, '');
   }
 }
