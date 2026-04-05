@@ -119,8 +119,8 @@ export class TypeOrmFilmsRepository implements FilmsRepository {
       .filter(Boolean);
   }
 
-  private toStoredList(values: string[]): string {
-    return Array.from(new Set(values)).join(',');
+  private toStoredList(values: string[]): string[] {
+    return Array.from(new Set(values));
   }
 
   private toPublicAssetName(path: string | null | undefined): string {
