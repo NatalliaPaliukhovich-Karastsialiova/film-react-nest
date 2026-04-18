@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { configProvider } from './app.config.provider';
 import { FilmsModule } from './films/films.module';
+import { LoggerModule } from './logger/logger.module';
 import { OrderModule } from './order/order.module';
 
 @Module({
@@ -43,6 +44,7 @@ import { OrderModule } from './order/order.module';
         };
       },
     }),
+    LoggerModule,
     FilmsModule,
     OrderModule,
     ServeStaticModule.forRoot({

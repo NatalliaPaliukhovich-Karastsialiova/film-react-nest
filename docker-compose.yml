@@ -1,0 +1,88 @@
+services:
+  frontend-builder:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-local}/film-react-nest-frontend-builder:latest
+    volumes:
+      - frontend_dist:/frontend-dist
+    restart: "no"
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: film-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-afisha_project}
+      POSTGRES_USER: ${POSTGRES_USER:-student}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-student}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-student} -d ${POSTGRES_DB:-afisha_project}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - film_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-local}/film-react-nest-backend:latest
+    environment:
+      DATABASE_DRIVER: postgres
+      DATABASE_URL: postgres://postgres:5432/${POSTGRES_DB:-afisha_project}
+      DATABASE_USERNAME: ${POSTGRES_USER:-student}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-student}
+      LOGGER_TYPE: ${LOGGER_TYPE:-json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - film_network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-local}/film-react-nest-nginx:latest
+    depends_on:
+      frontend-builder:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    ports:
+      - "80:80"
+    volumes:
+      - frontend_dist:/usr/share/nginx/html:ro
+    networks:
+      - film_network
+
+  pgadmin:
+    image: dpage/pgadmin4:9
+    container_name: film-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - film_network
+
+networks:
+  film_network:
+    driver: bridge
+
+volumes:
+  frontend_dist:
+  postgres_data:
+  pgadmin_data:
