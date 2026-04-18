@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - master
+      - review-3
     tags:
       - "v*"
   workflow_dispatch:
