@@ -1,40 +1,35 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import {
-  FilmScheduleSchema,
-  FilmScheduleSchemaModel,
-} from '../schemas/film-schedule.schema';
+import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Schedule } from './schedule.entity';
 
-@Schema({ collection: 'films' })
-export class FilmEntity {
-  @Prop({ required: true, unique: true, index: true })
+@Entity({ name: 'films' })
+export class Film {
+  @PrimaryColumn('uuid')
   id: string;
 
-  @Prop({ required: true })
+  @Column('float')
   rating: number;
 
-  @Prop({ required: true })
+  @Column()
   director: string;
 
-  @Prop({ type: [String], default: [] })
+  @Column('simple-array')
   tags: string[];
 
-  @Prop({ required: true })
-  title: string;
-
-  @Prop({ required: true })
-  about: string;
-
-  @Prop({ required: true })
-  description: string;
-
-  @Prop({ required: true })
+  @Column()
   image: string;
 
-  @Prop({ required: true })
+  @Column()
   cover: string;
 
-  @Prop({ type: [FilmScheduleSchema], default: [] })
-  schedule: FilmScheduleSchemaModel[];
-}
+  @Column()
+  title: string;
 
-export const FilmSchema = SchemaFactory.createForClass(FilmEntity);
+  @Column()
+  about: string;
+
+  @Column()
+  description: string;
+
+  @OneToMany(() => Schedule, (schedule) => schedule.film)
+  schedule: Schedule[];
+}

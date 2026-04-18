@@ -23,10 +23,8 @@ export class OrderService {
     private readonly filmsRepository: FilmsRepository,
   ) {}
 
-  async createOrder(
-    payload: TicketDto[] | CreateOrderPayloadDto,
-  ): Promise<OrderResponseDto> {
-    const tickets = this.extractTickets(payload);
+  async createOrder(payload: CreateOrderPayloadDto): Promise<OrderResponseDto> {
+    const tickets = payload.tickets;
 
     if (tickets.length === 0) {
       throw new BadRequestException({ error: 'tickets should not be empty' });
@@ -70,22 +68,6 @@ export class OrderService {
       total: items.length,
       items,
     };
-  }
-
-  private extractTickets(
-    payload: TicketDto[] | CreateOrderPayloadDto,
-  ): TicketDto[] {
-    if (Array.isArray(payload)) {
-      return payload;
-    }
-
-    if (payload?.tickets && Array.isArray(payload.tickets)) {
-      return payload.tickets;
-    }
-
-    throw new BadRequestException({
-      error: 'tickets array is required',
-    });
   }
 
   private toSeatKey(row: number, seat: number): string {

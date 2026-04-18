@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { FilmDto, FilmScheduleDto } from '../films/dto/films.dto';
-import { FilmEntity } from '../films/entities/film.entity';
+import { Film } from '../films/entities/film.entity';
+import { Schedule } from '../films/entities/schedule.entity';
 
 export const FILMS_REPOSITORY = 'FILMS_REPOSITORY';
 
 export type ReserveSeatsResult = 'reserved' | 'already_taken' | 'not_found';
-
-type FilmScheduleDocument = Omit<FilmScheduleDto, 'hall'> & {
-  hall: string | number;
-};
 
 export interface FilmsRepository {
   findAll(): Promise<FilmDto[]>;
@@ -23,34 +20,35 @@ export interface FilmsRepository {
 }
 
 @Injectable()
-export class MongoFilmsRepository implements FilmsRepository {
+export class TypeOrmFilmsRepository implements FilmsRepository {
   constructor(
-    @InjectModel(FilmEntity.name)
-    private readonly filmModel: Model<FilmEntity>,
+    @InjectRepository(Film)
+    private readonly filmRepository: Repository<Film>,
+    @InjectRepository(Schedule)
+    private readonly scheduleRepository: Repository<Schedule>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAll(): Promise<FilmDto[]> {
-    const films = await this.filmModel
-      .find({}, { _id: 0, __v: 0, schedule: 0 })
-      .lean()
-      .exec();
+    const films = await this.filmRepository.find({
+      relations: ['schedule'],
+    });
     return films.map((film) => this.toFilmDto(film));
   }
 
   async findScheduleByFilmId(
     filmId: string,
   ): Promise<FilmScheduleDto[] | null> {
-    const film = await this.filmModel
-      .findOne({ id: filmId }, { schedule: 1, _id: 0 })
-      .lean()
-      .exec();
-    if (!film) {
+    const filmExists = await this.filmRepository.existsBy({ id: filmId });
+    if (!filmExists) {
       return null;
     }
 
-    return (film.schedule ?? []).map((schedule) =>
-      this.toScheduleDto(schedule),
-    );
+    const schedules = await this.scheduleRepository.find({
+      where: { filmId },
+    });
+
+    return schedules.map((schedule) => this.toScheduleDto(schedule));
   }
 
   async reserveSeats(
@@ -58,63 +56,77 @@ export class MongoFilmsRepository implements FilmsRepository {
     sessionId: string,
     seats: string[],
   ): Promise<ReserveSeatsResult> {
-    const filmWithSessionExists = await this.filmModel.exists({
-      id: filmId,
-      'schedule.id': sessionId,
+    return this.dataSource.transaction(async (manager) => {
+      const schedule = await manager.findOne(Schedule, {
+        where: { id: sessionId, filmId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!schedule) {
+        return 'not_found';
+      }
+
+      const takenSeats = this.parseList(schedule.taken);
+      const alreadyTaken = seats.some((seat) => takenSeats.includes(seat));
+      if (alreadyTaken) {
+        return 'already_taken';
+      }
+
+      schedule.taken = this.toStoredList([...takenSeats, ...seats]);
+      await manager.save(schedule);
+
+      return 'reserved';
     });
-    if (!filmWithSessionExists) {
-      return 'not_found';
-    }
-
-    const updateResult = await this.filmModel.updateOne(
-      {
-        id: filmId,
-        schedule: {
-          $elemMatch: {
-            id: sessionId,
-            taken: { $nin: seats },
-          },
-        },
-      },
-      {
-        $addToSet: {
-          'schedule.$.taken': { $each: seats },
-        },
-      },
-    );
-
-    if (updateResult.modifiedCount === 0) {
-      return 'already_taken';
-    }
-
-    return 'reserved';
   }
 
-  private toFilmDto(film: Partial<FilmEntity>): FilmDto {
+  private toFilmDto(film: Film): FilmDto {
     return {
-      id: film.id ?? '',
-      rating: film.rating ?? 0,
-      director: film.director ?? '',
-      tags: film.tags ?? [],
-      title: film.title ?? '',
-      about: film.about ?? '',
-      description: film.description ?? '',
-      image: film.image ?? '',
-      cover: film.cover ?? '',
+      id: film.id,
+      rating: film.rating,
+      director: film.director,
+      tags: this.parseList(film.tags),
+      title: film.title,
+      about: film.about,
+      description: film.description,
+      image: this.toPublicAssetName(film.image),
+      cover: this.toPublicAssetName(film.cover),
+      schedule: (film.schedule ?? []).map((item) => this.toScheduleDto(item)),
     };
   }
 
-  private toScheduleDto(
-    schedule: Partial<FilmScheduleDocument>,
-  ): FilmScheduleDto {
+  private toScheduleDto(schedule: Schedule): FilmScheduleDto {
     return {
-      id: schedule.id ?? '',
-      daytime: schedule.daytime ?? '',
-      hall: Number(schedule.hall ?? 0),
-      rows: schedule.rows ?? 0,
-      seats: schedule.seats ?? 0,
-      price: schedule.price ?? 0,
-      taken: schedule.taken ?? [],
+      id: schedule.id,
+      daytime: schedule.daytime,
+      hall: schedule.hall,
+      rows: schedule.rows,
+      seats: schedule.seats,
+      price: Number(schedule.price),
+      taken: this.parseList(schedule.taken),
     };
+  }
+
+  private parseList(value: string | string[] | null | undefined): string[] {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (!value) {
+      return [];
+    }
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private toStoredList(values: string[]): string[] {
+    return Array.from(new Set(values));
+  }
+
+  private toPublicAssetName(path: string | null | undefined): string {
+    if (!path) {
+      return '';
+    }
+    return path.replace(/^\/+/, '');
   }
 }

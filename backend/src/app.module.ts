@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as path from 'node:path';
-import { MongooseModule } from '@nestjs/mongoose';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { configProvider } from './app.config.provider';
 import { FilmsModule } from './films/films.module';
@@ -13,11 +13,35 @@ import { OrderModule } from './order/order.module';
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    MongooseModule.forRootAsync({
+    TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.getOrThrow<string>('DATABASE_URL'),
-      }),
+      useFactory: (configService: ConfigService) => {
+        const driver = configService.getOrThrow<string>('DATABASE_DRIVER');
+        if (driver !== 'postgres') {
+          throw new Error(
+            `Unsupported DATABASE_DRIVER: ${driver}. Expected "postgres".`,
+          );
+        }
+
+        const databaseUrl = new URL(
+          configService.getOrThrow<string>('DATABASE_URL'),
+        );
+
+        return {
+          type: 'postgres' as const,
+          host: databaseUrl.hostname,
+          port: Number(databaseUrl.port || 5432),
+          database: databaseUrl.pathname.replace(/^\//, ''),
+          username: String(
+            configService.getOrThrow<string>('DATABASE_USERNAME'),
+          ),
+          password: String(
+            configService.getOrThrow<string>('DATABASE_PASSWORD'),
+          ),
+          autoLoadEntities: true,
+          synchronize: true,
+        };
+      },
     }),
     FilmsModule,
     OrderModule,

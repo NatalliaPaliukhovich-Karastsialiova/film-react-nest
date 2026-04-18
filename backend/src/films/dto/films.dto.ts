@@ -28,6 +28,9 @@ export class FilmDto {
 
   @IsString()
   description: string;
+
+  @IsArray()
+  schedule: FilmScheduleDto[];
 }
 
 export class FilmScheduleDto {
