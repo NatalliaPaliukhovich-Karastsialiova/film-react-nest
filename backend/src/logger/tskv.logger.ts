@@ -2,7 +2,11 @@ import { Injectable, LoggerService } from '@nestjs/common';
 
 @Injectable()
 export class TskvLogger implements LoggerService {
-  formatMessage(level: string, message: unknown, optionalParams: unknown[]): string {
+  formatMessage(
+    level: string,
+    message: unknown,
+    optionalParams: unknown[],
+  ): string {
     const payload: Record<string, string> = {
       time: new Date().toISOString(),
       level,
@@ -14,7 +18,9 @@ export class TskvLogger implements LoggerService {
     });
 
     return Object.entries(payload)
-      .map(([key, value]) => `${this.escapeValue(key)}=${this.escapeValue(value)}`)
+      .map(
+        ([key, value]) => `${this.escapeValue(key)}=${this.escapeValue(value)}`,
+      )
       .join('\t');
   }
 

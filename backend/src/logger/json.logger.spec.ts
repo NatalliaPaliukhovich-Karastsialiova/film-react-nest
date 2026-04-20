@@ -12,7 +12,10 @@ describe('JsonLogger', () => {
   });
 
   it('formats message as JSON payload', () => {
-    const formatted = logger.formatMessage('warn', 'сообщение', [{ id: 1 }, 123]);
+    const formatted = logger.formatMessage('warn', 'сообщение', [
+      { id: 1 },
+      123,
+    ]);
     const parsed = JSON.parse(formatted) as {
       time: string;
       level: string;
@@ -27,7 +30,9 @@ describe('JsonLogger', () => {
   });
 
   it('writes log level messages to console.log', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    const logSpy = jest
+      .spyOn(console, 'log')
+      .mockImplementation(() => undefined);
 
     logger.log('привет', { поле: 'значение' });
 

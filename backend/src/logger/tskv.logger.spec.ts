@@ -24,7 +24,10 @@ describe('TskvLogger', () => {
   });
 
   it('formats message as TSKV payload', () => {
-    const formatted = logger.formatMessage('debug', 'привет\tмир', [{ строка: 'раз\nдва' }, 7]);
+    const formatted = logger.formatMessage('debug', 'привет\tмир', [
+      { строка: 'раз\nдва' },
+      7,
+    ]);
     const record = parseTskv(formatted);
 
     expect(record.level).toBe('debug');

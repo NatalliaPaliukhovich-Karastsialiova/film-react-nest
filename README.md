@@ -1,5 +1,7 @@
 # FILM!
 
+## Cсылка на задеплоенный проект: http://film-react.paliukhovich.nomorepartiessite.ru
+
 ## Установка
 
 ### PostgreSQL
@@ -55,7 +57,7 @@ API будет доступен по адресу:
 
 Скопируйте пример Docker-переменных в `.env`:
 
-`cp .env.docker.example .env`
+`cp .env.example .env`
 
 Запустите сборку и контейнеры:
 
