@@ -1,0 +1,82 @@
+import { Injectable, LoggerService } from '@nestjs/common';
+
+@Injectable()
+export class TskvLogger implements LoggerService {
+  formatMessage(
+    level: string,
+    message: unknown,
+    optionalParams: unknown[],
+  ): string {
+    const payload: Record<string, string> = {
+      time: new Date().toISOString(),
+      level,
+      message: this.stringifyValue(message),
+    };
+
+    optionalParams.forEach((param, index) => {
+      payload[`optionalParam${index}`] = this.stringifyValue(param);
+    });
+
+    return Object.entries(payload)
+      .map(
+        ([key, value]) => `${this.escapeValue(key)}=${this.escapeValue(value)}`,
+      )
+      .join('\t');
+  }
+
+  log(message: unknown, ...optionalParams: unknown[]): void {
+    console.log(this.formatMessage('log', message, optionalParams));
+  }
+
+  error(message: unknown, ...optionalParams: unknown[]): void {
+    console.error(this.formatMessage('error', message, optionalParams));
+  }
+
+  warn(message: unknown, ...optionalParams: unknown[]): void {
+    console.warn(this.formatMessage('warn', message, optionalParams));
+  }
+
+  debug(message: unknown, ...optionalParams: unknown[]): void {
+    console.debug(this.formatMessage('debug', message, optionalParams));
+  }
+
+  verbose(message: unknown, ...optionalParams: unknown[]): void {
+    console.info(this.formatMessage('verbose', message, optionalParams));
+  }
+
+  private stringifyValue(value: unknown): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+
+    if (value instanceof Error) {
+      return value.stack ?? value.message;
+    }
+
+    if (value === undefined) {
+      return 'undefined';
+    }
+
+    if (value === null) {
+      return 'null';
+    }
+
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '[unserializable-object]';
+      }
+    }
+
+    return String(value);
+  }
+
+  private escapeValue(value: string): string {
+    return value
+      .replace(/\\/g, '\\\\')
+      .replace(/\t/g, '\\t')
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '\\r');
+  }
+}
